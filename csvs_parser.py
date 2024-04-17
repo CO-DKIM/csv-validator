@@ -26,11 +26,18 @@ class Validator:
 
         with open(lark_file_version) as lark_file:
             lark_text = lark_file.read()
-        self._csvs_parser = Lark(lark_text, start="start")
+        self._csvs_parser = Lark(lark_text, start="start", lexer="dynamic")
         print(self._csvs_parser.parse(self._schema_text).pretty())
 
     def _strip_comments(self, schema):
-        return re.sub(r"//.*?(\r\n?|\n|\Z)|/\*.*?\*/", '', schema, flags=re.S)
+        # Block comments, everything between "/*" and "*/"
+        schema = re.sub(r"/\*.*?\*/", "", schema, flags=re.S)
+        # Line comments, everything after "//"
+        # Note, in order to not capture http://foo.bar
+        # There must be a space or newline before the "//"
+        # No s-flag so it stops at the end of the line or file
+        schema = re.sub(r"(?:\s|^)(?P<comment>\/\/(?P<text>.+))", "", schema)
+        return schema
 
     def _get_version(self):
         first_line = self._schema_text.split("\n")[0]
@@ -44,4 +51,4 @@ class Validator:
 
 
 if __name__ == "__main__":
-    v = Validator("example1.csvs")
+    v = Validator("test.csvs")
