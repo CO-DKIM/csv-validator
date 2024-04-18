@@ -36,7 +36,10 @@ class Validator:
         # Note, in order to not capture http://foo.bar
         # There must be a space or newline before the "//"
         # No s-flag so it stops at the end of the line or file
-        schema = re.sub(r"(?:\s|^)(?P<comment>\/\/(?P<text>.+))", "", schema)
+        schema = re.sub(r"(?:\s|^)(\/\/(.*))", "", schema)
+        # replace 3 or more spaces/newlines with one newline to
+        # trim the white space for readability
+        schema = re.sub(r"[\n\r\s]{3,}", "\n", schema, flags=re.M)
         return schema
 
     def _get_version(self):

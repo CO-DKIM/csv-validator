@@ -23,7 +23,7 @@ column_directives: ( optional_directive | match_is_false_directive | ignore_case
 optional_directive: directive_prefix "optional" // 23
 match_is_false_directive: directive_prefix "matchIsFalse" // 24
 ignore_case_directive: directive_prefix "ignoreCase" // 25
-warning_directive: directive_prefix ("warning"|"warningDirective") // 26
+warning_directive: directive_prefix ("warning"|"warningDirective") // 26 in some example 1.0  warningDirective is used
 column_validation_expr: combinatorial_expr | non_combinatorial_expr // 27
 combinatorial_expr: or_expr | and_expr // 28
 or_expr: non_combinatorial_expr "or" column_validation_expr // 29
@@ -75,7 +75,8 @@ uk_date_literal: /(((0[1-9]|(1|2)[0-9]|3[0-1])\/(0(1|3|5|7|8)|1(0|2)))|((0[1-9]|
 positive_non_zero_integer_literal: /[1-9][0-9]*/ // 74
 positive_integer_literal: /[0-9]+/ // 75
 numeric_literal: /-?[0-9]+(\.[0-9]+)?/ // 76
-string_literal: /\x22[^\x22]*\x22/ // 77
+//string_literal: /\x22[^\x22]*\x22/ // 77
+string_literal: /\"(\\.|[^\"])*\"/ // Allows escapes quote marks in string literal
 character_literal: /'[^\r\n\f']'/ // 78
 wildcard_literal: /"*"/ // 79
 ident: /[A-Za-z0-9\-_\.]+/ // 80
