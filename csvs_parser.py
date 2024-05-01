@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 from lark import Lark, Transformer
-import csv
 import pprint
 
 
@@ -224,7 +223,10 @@ class CSVS_Transformer(Transformer):
 
     def uuid4_expr(self, _):
         def uuid4_validator(value):
-            regex = re.compile(r"^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}$", re.I)
+            regex = re.compile(
+                r"^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab]"
+                r"[a-f0-9]{3}-?[a-f0-9]{12}$", re.I
+            )
             match = regex.match(value.strip())
             return bool(match)
         return uuid4_validator
