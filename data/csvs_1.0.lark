@@ -3,7 +3,8 @@
 %ignore WS
 start: prolog body // 1
 prolog: version_decl global_directives // 2
-version_decl: "version 1.0" // 3
+//version_decl: "version 1.0" // 3
+version_decl: "version" numeric_literal
 global_directives: ( separator_directive | quoted_directive | total_columns_directive | no_header_directive | ignore_column_name_case_directive )* // 4
 directive_prefix: "@" // 5
 separator_directive: directive_prefix "separator" ( separator_tab_expr | separator_char ) // 6
