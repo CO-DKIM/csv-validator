@@ -361,6 +361,11 @@ class CSVS_Transformer(Transformer):
     #   column_ref ("," column_ref)* ")")? // 47
 
     # uri_expr: "uri" // 48
+    def uri_expr(self, _):
+        def uri_validator(value):
+            from rfc3986_validator import validate_rfc3986
+            return validate_rfc3986(value)
+        return uri_validator
 
     # xsd_date_time_expr: "xDateTime" ("(" xsd_date_time_literal ","
     #   xsd_date_time_literal ")")? // 49

@@ -121,3 +121,9 @@ def test_not_empty_expr(transformer):
     not_empty_validator = transformer.not_empty_expr(())
     assert not not_empty_validator("")
     assert not_empty_validator("X")
+
+
+def test_uri_expr(transformer):
+    uri_validator = transformer.uri_expr(())
+    assert uri_validator("http://data.gov.uk/some_asset")
+    assert not uri_validator("http://data.gov.uk/spaces should be escaped")
