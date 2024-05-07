@@ -141,7 +141,15 @@ class CSVS_Transformer(Transformer):
     # quoted_column_identifier) ":" column_rule // 18
     def column_definition(self, tree):
         (column, rules) = tree
-        self._rules[column.value] = rules
+        self._rules[column.value] = {}
+        if len(rules) == 2:
+            self._rules[column.value]["function"] = rules[0]
+            self._rules[column.value]["directives"] = rules[1]
+        else:
+            def implicit_and(value):
+                return all(func(value) for func in rules[0:-1])
+            self._rules[column.value]["function"] = implicit_and
+            self._rules[column.value]["directives"] = rules[-1]
         return column
 
     # column_identifier: positive_non_zero_integer_literal |
@@ -157,19 +165,37 @@ class CSVS_Transformer(Transformer):
 
     # column_rule: column_validation_expr* column_directives // 21
     def column_rule(self, tree):
-        return tree[0]
+        return tree
 
     # column_directives: ( optional_directive | match_is_false_directive |
     # ignore_case_directive | warning_directive )* // 22
+    def column_directives(self, tree):
+        directives = {
+            "optional": False,
+            "matchIsFalse": False,
+            "ignoreCase": False,
+            "warning": False,
+            }
+        for directive in tree:
+            directives[directive] = True
+        return directives
 
     # optional_directive: directive_prefix "optional" // 23
+    def optional_directive(self, tree):
+        return "optional"
 
     # match_is_false_directive: directive_prefix "matchIsFalse" // 24
+    def match_is_false_directive(self, tree):
+        return "matchIsFalse"
 
     # ignore_case_directive: directive_prefix "ignoreCase" // 25
+    def ignore_case_directive(self, tree):
+        return "ignoreCase"
 
     # warning_directive: directive_prefix ("warning"|"warningDirective") // 26
     # in some example 1.0  warningDirective is used
+    def warning_directive(self, tree):
+        return "warning"
 
     # column_validation_expr: combinatorial_expr | non_combinatorial_expr // 27
     def column_validation_expr(self, tree):
@@ -244,12 +270,46 @@ class CSVS_Transformer(Transformer):
         return not_validator
 
     # in_expr: "in(" string_provider ")" // 38
+    def in_expr(self, tree):
+        (tree, ) = tree
+
+        def in_validator(value):
+            try:
+                return value in tree
+            except TypeError:
+                return False
+        return in_validator
 
     # starts_with_expr: "starts(" string_provider ")" // 39
+    def starts_with_expr(self, tree):
+        (starts_with_value, ) = tree
+
+        def starts_with_validator(value):
+            # Strip the white space if there is any
+            value = value.strip()
+            return starts_with_value == value[:len(starts_with_value)]
+        return starts_with_validator
 
     # ends_with_expr: "ends(" string_provider ")" // 40
+    def ends_with_expr(self, tree):
+        (ends_with_value, ) = tree
+
+        def ends_with_validator(value):
+            value = value.strip()
+            return ends_with_value == value[-len(ends_with_value):]
+        return ends_with_validator
 
     # reg_exp_expr: "regex(" string_literal ")" // 41
+    def reg_exp_expr(self, tree):
+        (regex, ) = tree
+        match_re = re.compile(r"^" + regex + "$")
+
+        def regex_validator(value):
+            if re.match(match_re, value):
+                return True
+            else:
+                return False
+        return regex_validator
 
     # range_expr: "range(" numeric_literal "," numeric_literal ")" // 42
     def range_expr(self, tree):
@@ -267,19 +327,27 @@ class CSVS_Transformer(Transformer):
 
     # length_expr: "length(" ( positive_integer_or_any ",")?
     # positive_integer_or_any ")" // 43
+    def length_expr(self, tree):
+        if type(tree) is int:
+            def length_validator(value):
+                return len(value) == tree
+        else:
+            if tree[1] == '*':
+                def length_validator(value):
+                    return tree[0] <= len(value)
+            elif tree[0] == '*':
+                def length_validator(value):
+                    return len(value) <= tree[1]
+            else:
+                def length_validator(value):
+                    return tree[0] <= len(value) <= tree[1]
+        return length_validator
 
     # positive_integer_or_any: positive_integer_literal |
     # wildcard_literal // 44
-    def positive_integer_or_any_expr(self):
-        def pos_or_any_validator(value):
-            if value == "*":
-                return True
-            else:
-                try:
-                    return float(value) == int(value) and int(value) >= 0
-                except ValueError:
-                    return False
-        return pos_or_any_validator
+    def positive_integer_or_any(self, tree):
+        (tree, ) = tree
+        return tree
 
     # empty_expr: "empty" // 45
     def empty_expr(self, _):

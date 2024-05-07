@@ -1,4 +1,5 @@
 from csvs_parser import CSVS_Parser, CSVS_Transformer
+from pprint import pprint
 
 
 class CSV_Validator:
@@ -16,7 +17,7 @@ if __name__ == "__main__":
 
     print("--------- PARSED ---------")
     transformer.transform(parser.tree)
-    print(transformer.rules)
+    pprint(transformer.rules)
     # print(transformer.rules['name']("something"))  # True
     # print(transformer.rules['name'](""))  # False
     # print(transformer.rules['age']("23"))  # True
@@ -28,4 +29,4 @@ if __name__ == "__main__":
     with open("example2.csv") as csv_file:
         csvfile = csv_file.read()
     c = CSV_Validator(csvfile, transformer.rules)
-    print(c)
+    pprint(c)

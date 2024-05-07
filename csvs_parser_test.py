@@ -58,23 +58,21 @@ def test_is_expr(transformer):
     assert not is_validator(23)
 
 
+def test_in_expr(transformer):
+    comparison_value = ("this is a test string",)
+    in_validator = transformer.in_expr(comparison_value)
+
+    assert in_validator("test")
+    assert not in_validator(23)
+    assert not in_validator("nothing to see here")
+
+
 def test_not_expr(transformer):
     comparison_value = ("test",)
     not_validator = transformer.not_expr(comparison_value)
 
     assert not_validator("Spain")
     assert not not_validator("test")
-
-
-def test_positive_integer_or_any_expr(transformer):
-    pos_or_any = transformer.positive_integer_or_any_expr()
-
-    assert pos_or_any('1')
-    assert pos_or_any(2)
-    assert pos_or_any(0)
-    assert pos_or_any('*')
-    assert not pos_or_any(-1)
-    assert not pos_or_any('bad')
 
 
 def test_range_expr(transformer):
@@ -88,3 +86,38 @@ def test_range_expr(transformer):
 
     assert range_validator_2(-4)
     assert not range_validator_2(10)
+
+
+def test_length_expr(transformer):
+    length_validator_1 = transformer.length_expr(5)
+    length_validator_2 = transformer.length_expr((2, 10))
+    length_validator_3 = transformer.length_expr((2, '*'))
+    length_validator_4 = transformer.length_expr(('*', 10))
+
+    assert length_validator_1("words")
+    assert not length_validator_1("this is a test and is too long")
+    assert not length_validator_1("x")
+
+    assert length_validator_2("word")
+    assert not length_validator_2("this is a test and is too long")
+    assert not length_validator_2("x")
+
+    assert length_validator_3("word")
+    assert length_validator_3("this is a test and is too long")
+    assert not length_validator_3("x")
+
+    assert length_validator_4("word")
+    assert not length_validator_4("this is a test and is too long")
+    assert length_validator_4("x")
+
+
+def test_empty_expr(transformer):
+    empty_validator = transformer.empty_expr(())
+    assert empty_validator("")
+    assert not empty_validator("X")
+
+
+def test_not_empty_expr(transformer):
+    not_empty_validator = transformer.not_empty_expr(())
+    assert not not_empty_validator("")
+    assert not_empty_validator("X")
