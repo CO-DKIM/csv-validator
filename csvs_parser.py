@@ -63,6 +63,7 @@ class CSVS_Parser:
 
 class CSVS_Transformer(Transformer):
     def __init__(self):
+        self.column_counter = 0
         self._rules = {
             "@global_directives": {
                 "separator": ',',
@@ -105,7 +106,7 @@ class CSVS_Transformer(Transformer):
 
     # separator_tab_expr: "TAB" | "\\t" // 7
     def separator_tab_expr(self, tree):
-        return "TAB"
+        return "\t"
 
     # separator_char: character_literal // 8
     def separator_char(self, sc):
@@ -141,15 +142,19 @@ class CSVS_Transformer(Transformer):
     # quoted_column_identifier) ":" column_rule // 18
     def column_definition(self, tree):
         (column, rules) = tree
-        self._rules[column.value] = {}
+        col_num = self.column_counter
+        self.column_counter += 1
+        self._rules[col_num] = {
+            "name": column.value
+        }
         if len(rules) == 2:
-            self._rules[column.value]["function"] = rules[0]
-            self._rules[column.value]["directives"] = rules[1]
+            self._rules[col_num]["function"] = rules[0]
+            self._rules[col_num]["directives"] = rules[1]
         else:
             def implicit_and(value):
                 return all(func(value) for func in rules[0:-1])
-            self._rules[column.value]["function"] = implicit_and
-            self._rules[column.value]["directives"] = rules[-1]
+            self._rules[col_num]["function"] = implicit_and
+            self._rules[col_num]["directives"] = rules[-1]
         return column
 
     # column_identifier: positive_non_zero_integer_literal |
