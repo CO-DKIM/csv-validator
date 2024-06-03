@@ -1,0 +1,6 @@
+version 1.0
+@totalColumns 4
+name: notEmpty /*a name must be given, but we don't specify anything else about what constitutes a valid name*/
+age: range(0, 120) positiveInteger /*ages must be a number between 0 and 120, and can only be whole numbers, no half years etc*/
+gender: is("m") or is("f") /*for this example, only binary male/female gender accepted, expressed as the single characters m or f*/
+title: if($gender/is("m"),is("Mr"),is("Mrs") or is("Ms") or is("Miss")) /*for this example, if the gender column has the value "m" then the title must be "Mr", else the title may be either "Mrs", "Ms" or "Miss*/

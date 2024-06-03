@@ -6,6 +6,54 @@ from lark import Lark, Transformer
 VERSION = 1.0
 
 
+class StringLiteral:
+    # Just so we can treat all string provider types the same
+    def __init__(self, value):
+        self._value = value
+        self.row = []
+        self.colmap = 0
+
+    def __repr__(self):
+        return self._value
+
+    def resolve(self):
+        return self._value
+
+
+class ColumnReference:
+    def __init__(self, column_name: str):
+        self._column_name = column_name
+        self._row = []
+        self._colmap = 0
+
+    def __repr__(self):
+        return f"${self._column_name} {self._row} {self._colmap}"
+
+    @property
+    def column_name(self):
+        return self._column_name
+
+    @property
+    def row(self):
+        return self._row
+
+    @row.setter
+    def row(self, row_value: list):
+        self._row = row_value
+
+    @property
+    def colmap(self):
+        return self._colmap
+
+    @colmap.setter
+    def colmap(self, colmap_value):
+        self._colmap = colmap_value
+
+    def resolve(self):
+        index = self._colmap[self._column_name]
+        return self._row[index]
+
+
 class SchemaError(Exception):
     def __init__(self, message):
         print(message)
@@ -147,14 +195,8 @@ class CSVS_Transformer(Transformer):
         self._rules[col_num] = {
             "name": column.value
         }
-        if len(rules) == 2:
-            self._rules[col_num]["function"] = rules[0]
-            self._rules[col_num]["directives"] = rules[1]
-        else:
-            def implicit_and(value):
-                return all(func(value) for func in rules[0:-1])
-            self._rules[col_num]["function"] = implicit_and
-            self._rules[col_num]["directives"] = rules[-1]
+        self._rules[col_num]["directives"] = rules[-1]
+        self._rules[col_num]["functions"] = rules[0:-1]
         return column
 
     # column_identifier: positive_non_zero_integer_literal |
@@ -166,6 +208,7 @@ class CSVS_Transformer(Transformer):
     # quoted_column_identifier: string_literal // 20
     def quoted_column_identifier(self, tree):
         (tree, ) = tree
+        tree = tree.resolve()
         return tree
 
     # column_rule: column_validation_expr* column_directives // 21
@@ -215,27 +258,30 @@ class CSVS_Transformer(Transformer):
     def or_expr(self, tree):
         (or1, or2) = tree
 
-        def or_validator(value):
-            return or1(value) or or2(value)
+        def or_validator(value, row, colmap):
+            return or1(value, row, colmap) or or2(value, row, colmap)
         return or_validator
 
     # and_expr: non_combinatorial_expr "and" column_validation_expr // 30
     def and_expr(self, tree):
         (and1, and2) = tree
 
-        def and_validator(value):
-            return and1(value) and and2(value)
+        def and_validator(value, row, colmap):
+            return and1(value, row, colmap) and and2(value, row, colmap)
         return and_validator
 
     # non_combinatorial_expr: non_conditional_expr | conditional_expr // 31
     def non_combinatorial_expr(self, tree):
+        # print("NCE: ", tree)
         (tree, ) = tree
+        # print(tree)
         return tree
 
     # non_conditional_expr: single_expr |
     # external_single_expr | parenthesized_expr // 32
     def non_conditional_expr(self, tree):
         (tree, ) = tree
+        print(tree)
         return tree
 
     # single_expr: explicit_context_expr? ( is_expr | not_expr |
@@ -247,9 +293,10 @@ class CSVS_Transformer(Transformer):
     def single_expr(self, tree):
         if len(tree) == 1:
             (tree, ) = tree
+            return tree
         else:
-            (tree, _) = tree
-        return tree
+            (context, tree) = tree
+            return ([context, tree])
 
     # explicit_context_expr: column_ref "/" // 34
     def explicit_context_expr(self, tree):
@@ -257,49 +304,65 @@ class CSVS_Transformer(Transformer):
         return tree
 
     # column_ref: "$" ( column_identifier | quoted_column_identifier ) // 35
+    def column_ref(self, tree):
+        (tree,) = tree
+        col_ref = ColumnReference(tree)
+        return col_ref
 
     # is_expr: "is(" string_provider ")" // 36
     def is_expr(self, tree):
         (tree,) = tree
 
-        def is_validator(value):
-            return value == tree
+        def is_validator(value, row, colmap):
+            tree.row = row
+            tree.colmap = colmap
+            return value == tree.resolve()
         return is_validator
 
     # not_expr: "not(" string_provider ")" // 37
     def not_expr(self, tree):
         (tree,) = tree
 
-        def not_validator(value):
-            return tree != value
+        def not_validator(value, row, colmap):
+            tree.row = row
+            tree.colmap = colmap
+            return value != tree.resolve()
         return not_validator
 
     # in_expr: "in(" string_provider ")" // 38
     def in_expr(self, tree):
         (tree, ) = tree
 
-        def in_validator(value):
+        def in_validator(value, row, colmap):
+            tree.row = row
+            tree.colmap = colmap
             try:
-                return value in tree
+                return value in tree.resolve()
             except TypeError:
                 return False
         return in_validator
 
     # starts_with_expr: "starts(" string_provider ")" // 39
     def starts_with_expr(self, tree):
-        (starts_with_value, ) = tree
+        (tree, ) = tree
 
-        def starts_with_validator(value):
+        def starts_with_validator(value, row, colmap):
             # Strip the white space if there is any
+            tree.row = row
+            tree.colmap = colmap
             value = value.strip()
+            starts_with_value = tree.resolve()
             return starts_with_value == value[:len(starts_with_value)]
         return starts_with_validator
 
     # ends_with_expr: "ends(" string_provider ")" // 40
     def ends_with_expr(self, tree):
-        (ends_with_value, ) = tree
+        (tree, ) = tree
 
-        def ends_with_validator(value):
+        def ends_with_validator(value, row, colmap):
+            tree.row = row
+            tree.colmap = colmap
+            ends_with_value = tree.resolve()
             value = value.strip()
             return ends_with_value == value[-len(ends_with_value):]
         return ends_with_validator
@@ -307,9 +370,9 @@ class CSVS_Transformer(Transformer):
     # reg_exp_expr: "regex(" string_literal ")" // 41
     def reg_exp_expr(self, tree):
         (regex, ) = tree
-        match_re = re.compile(r"^" + regex + "$")
 
-        def regex_validator(value):
+        def regex_validator(value, _row, _colmap):
+            match_re = re.compile(r"^" + regex.resolve() + "$")
             if re.match(match_re, value):
                 return True
             else:
@@ -322,7 +385,7 @@ class CSVS_Transformer(Transformer):
         min_val = min([float(tree[0]), float(tree[1])])
         max_val = max([float(tree[0]), float(tree[1])])
 
-        def range_validator(value):
+        def range_validator(value, _row, _colmap):
             try:
                 x = float(value)
             except ValueError:
@@ -334,17 +397,17 @@ class CSVS_Transformer(Transformer):
     # positive_integer_or_any ")" // 43
     def length_expr(self, tree):
         if type(tree) is int:
-            def length_validator(value):
+            def length_validator(value, _row, _colmap):
                 return len(value) == tree
         else:
             if tree[1] == '*':
-                def length_validator(value):
+                def length_validator(value, _row, _colmap):
                     return tree[0] <= len(value)
             elif tree[0] == '*':
-                def length_validator(value):
+                def length_validator(value, _row, _colmap):
                     return len(value) <= tree[1]
             else:
-                def length_validator(value):
+                def length_validator(value, _row, _colmap):
                     return tree[0] <= len(value) <= tree[1]
         return length_validator
 
@@ -356,18 +419,18 @@ class CSVS_Transformer(Transformer):
 
     # empty_expr: "empty" // 45
     def empty_expr(self, _):
-        return lambda x: not bool(x)
+        return lambda x, _y, _z: not bool(x)
 
     # not_empty_expr: "notEmpty" // 46
-    def not_empty_expr(self, _):
-        return lambda x: bool(x)
+    def not_empty_expr(self, _x):
+        return lambda x, _y, _z: bool(x)
 
     # unique_expr: "unique" ("("
     #   column_ref ("," column_ref)* ")")? // 47
 
     # uri_expr: "uri" // 48
     def uri_expr(self, _):
-        def uri_validator(value):
+        def uri_validator(value, _row, _colmap):
             from rfc3986_validator import validate_rfc3986
             return validate_rfc3986(value)
         return uri_validator
@@ -394,7 +457,7 @@ class CSVS_Transformer(Transformer):
 
     # uuid4_expr: "uuid4" // 56
     def uuid4_expr(self, _):
-        def uuid4_validator(value):
+        def uuid4_validator(value, _row, _colmap):
             regex = re.compile(
                 r"^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab]"
                 r"[a-f0-9]{3}-?[a-f0-9]{12}$", re.I
@@ -405,8 +468,8 @@ class CSVS_Transformer(Transformer):
 
     # positive_integer_expr: "positiveInteger" // 57
     def positive_integer_expr(self, _):
-        def positive_integer_validator(value):
-            return float(value) == int(value) and value > 0
+        def positive_integer_validator(value, _row, _colmap):
+            return float(value) == int(value) and int(value) > 0
         return positive_integer_validator
 
     # string_provider: column_ref | string_literal // 58
@@ -422,15 +485,50 @@ class CSVS_Transformer(Transformer):
     # checksum_expr: "checksum(" file_expr "," string_literal ")" // 61
 
     # file_expr: "file(" (string_provider "," )? string_provider ")" // 62
+    def file_expr(self, tree):
+        file_path = Path(*tree)
+        return file_path
 
     # file_count_expr: "fileCount(" file_expr ")" // 63
 
     # parenthesized_expr: "(" column_validation_expr+ ")" // 64
+    def parenthesized_expr(self, tree):
+        (tree,) = tree
+        return tree
 
     # conditional_expr: if_expr // 65
+    def conditional_expr(self, tree):
+        (tree,) = tree
+        return tree
 
     # if_expr: "if(" ( combinatorial_expr | non_conditional_expr ) ","
     #    column_validation_expr+ ("," column_validation_expr+)? ")" // 66
+    def if_expr(self, tree):
+        print("IF", tree)
+
+        if len(tree) == 3:
+            def if_validator(value, row, colmap):
+                context = tree[0]
+                (comparator, condition) = context
+                comparator.row = row
+                comparator.colmap = colmap
+                comparator = comparator.resolve()
+                if condition(comparator, row, colmap):
+                    return tree[1](value, row, colmap)
+                else:
+                    return tree[2](value, row, colmap)
+        else:
+            def if_validator(value, row, colmap):
+                context = tree[0]
+                (comparator, condition) = context
+                comparator.row = row
+                comparator.colmap = colmap
+                comparator = comparator.resolve()
+                if condition(comparator, row, colmap):
+                    return tree[1](value, row, colmap)
+                else:
+                    return True
+        return if_validator
 
     # xsd_date_time_literal: xsd_date_without_timezone_component "T"
     #     xsd_time_literal // 67
@@ -477,7 +575,8 @@ class CSVS_Transformer(Transformer):
     # Allows escapes quote marks in string literal
     def string_literal(self, sl):
         (sl,) = sl
-        return sl[1:-1]
+        sl = StringLiteral(sl[1:-1])
+        return sl
 
     # character_literal: /'[^\r\n\f']'/ // 78
     def character_literal(self, cl):

@@ -9,6 +9,7 @@ class CSV_Validator:
         self.rules = rules
         self.column_index = {}
         self.column_map = {}
+        self.column_name_map = {}
 
     def __repr__(self):
         return self.csv_file
@@ -43,7 +44,7 @@ class CSV_Validator:
                         if self.rules[key]["directives"]["optional"]:
                             # Optional column found
                             if cur_col == csvs_name:
-                                print(f"Optional key \"{csvs_name}\" found, adding at position {col_num}.")
+                                print(f"Optional key \"{csvs_name}\" found, adding at column {col_num}.")
                                 self.column_index[csvs_name] = col_num
                                 self.column_map[col_num] = key
                                 if col_names:
@@ -59,9 +60,10 @@ class CSV_Validator:
                         else:
                             # Non-optional column found
                             if cur_col == csvs_name:
-                                print(f"Key \"{csvs_name}\" found, adding at position {col_num}")
+                                print(f"Key \"{csvs_name}\" found, adding at column {col_num}")
                                 self.column_index[csvs_name] = col_num
                                 self.column_map[col_num] = key
+                                self.column_name_map[cur_col] = col_num
                                 if col_names:
                                     cur_col = col_names.pop(0)
                                 else:  # Empty list
@@ -71,7 +73,7 @@ class CSV_Validator:
                             else:
                                 print(f"Key \"{csvs_name}\" not found. Failed!")
                                 return False
-            print(self.column_index)
+            # print(self.column_index)
             # Pop the header off the front
             csv_list = csv_list[1:]
         # Evaluate each row
@@ -80,22 +82,28 @@ class CSV_Validator:
                 # Key in the rules for the column
                 key = self.column_map[index]
                 directives = self.rules[key]["directives"]
-                function = self.rules[key]["function"]
-                if directives["matchIsFalse"]:
-                    if function(value):
-                        print("Invalid element!")
-                        print(f"[{row_num}, {index}]: \"{value}\"")
-                        return False
-                else:
-                    if not function(value):
-                        print("Invalid element!")
-                        print(f"[{row_num}, {index}]: \"{value}\"")
-                        return False
+                functions = self.rules[key]["functions"]
+                for function in functions:
+                    if type(function) is tuple:
+                        print("CONTEXT: ")
+                        for i in function:
+                            print("\t", i)
+                    else:
+                        if directives["matchIsFalse"]:
+                            if function(value, row, self.column_name_map):
+                                print("Invalid element!")
+                                print(f"[{row_num}, {index}]: \"{value}\"")
+                                return False
+                        else:
+                            if not function(value, row, self.column_name_map):
+                                print("Invalid element!")
+                                print(f"[{row_num}, {index}]: \"{value}\"")
+                                return False
         return True
 
 
 if __name__ == "__main__":
-    parser = CSVS_Parser("example1.csvs")
+    parser = CSVS_Parser("example4.csvs")
     transformer = CSVS_Transformer()
 
     print("--------- PARSED ---------")
@@ -109,7 +117,7 @@ if __name__ == "__main__":
     # print(transformer.rules['gender']('m'))  # True
     # print(transformer.rules['gender']('?'))  # False
 
-    with open("example2.csv") as csv_file:
+    with open("example5.csv") as csv_file:
         csvfile = csv_file.read()
     c = CSV_Validator(csvfile, transformer.rules)
     pprint(c)
