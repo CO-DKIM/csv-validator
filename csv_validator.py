@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 from csvs_parser import CSVS_Parser, CSVS_Transformer
 import csv
 from pprint import pprint
