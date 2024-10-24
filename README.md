@@ -11,9 +11,9 @@ $ source venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
-## Run
+## Run
 
 ```sh
-$ ./csv_validator.py
+$ ./csv_validator.py schema_file.csvs csv_file.csv
 ```
 

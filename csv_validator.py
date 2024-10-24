@@ -2,6 +2,7 @@
 
 from csvs_parser import CSVS_Parser, CSVS_Transformer
 import csv
+import argparse
 from pprint import pprint
 
 
@@ -105,7 +106,18 @@ class CSV_Validator:
 
 
 if __name__ == "__main__":
-    parser = CSVS_Parser("example4.csvs")
+
+    arg_parser = argparse.ArgumentParser(description="CSV Validator for checking a CSV file\
+                                     contains what it is supposed to.")
+
+    # Required schema file
+    arg_parser.add_argument('schema_file', help="CSV Schema file.")
+    # Required csv file
+    arg_parser.add_argument('csv_file', help="CSV file to be validated.")
+
+    args = arg_parser.parse_args()
+
+    parser = CSVS_Parser(args.schema_file)
     transformer = CSVS_Transformer()
 
     print("--------- PARSED ---------")
@@ -119,7 +131,7 @@ if __name__ == "__main__":
     # print(transformer.rules['gender']('m'))  # True
     # print(transformer.rules['gender']('?'))  # False
 
-    with open("example5.csv") as csv_file:
+    with open(args.csv_file) as csv_file:
         csvfile = csv_file.read()
     c = CSV_Validator(csvfile, transformer.rules)
     pprint(c)
