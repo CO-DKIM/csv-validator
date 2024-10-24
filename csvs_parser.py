@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 from lark import Lark, Transformer
+from external_validators import file_checksum
 
 # This parser is for CSVS version 1.0
 VERSION = 1.0
