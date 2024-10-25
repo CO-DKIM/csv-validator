@@ -1,0 +1,3 @@
+version 1.0
+prefix: is("EXT") and $drive_name/starts("ext_")
+drive_name:

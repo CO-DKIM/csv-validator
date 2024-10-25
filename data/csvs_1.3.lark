@@ -1,0 +1,97 @@
+// https://digital-preservation.github.io/csv-schema-1.2.html
+%import common.WS
+%ignore WS
+start: prolog body // 1
+prolog: version_decl global_directives // 2
+version_decl: ("version 1.0" | "version 1.1" | "version 1.2" | "version 1.3") // 3
+global_directives: ( separator_directive | quoted_directive | total_columns_directive | permit_empty_directive | no_header_directive | ignore_column_name_case_directive )* // 4
+directive_prefix: "@" // 5
+separator_directive: directive_prefix "separator" ( separator_tab_expr | separator_char ) // 6
+separator_tab_expr: "TAB" | "\\t" // 7
+separator_char: character_literal // 8
+quoted_directive: directive_prefix "quoted" // 9
+total_columns_directive: directive_prefix "totalColumns" positive_non_zero_integer_literal// 10
+permit_empty_directive: directive_prefix "permitEmpty" // 11
+no_header_directive: directive_prefix "noHeader" // 12
+ignore_column_name_case_directive: directive_prefix "ignoreColumnNameCase" // 13
+body: body_part+ // 14
+body_part: column_definition // 15
+column_definition: (column_identifier | quoted_column_identifier) ":" column_rule // 19
+column_identifier: positive_non_zero_integer_literal | ident // 20
+quoted_column_identifier: string_literal // 21
+column_rule: column_validation_expr* column_directives // 22
+column_directives: ( optional_directive | match_is_false_directive | ignore_case_directive | warning_directive )* // 23
+optional_directive: directive_prefix "optional" // 24
+match_is_false_directive: directive_prefix "matchIsFalse" // 25
+ignore_case_directive: directive_prefix "ignoreCase" // 26
+warning_directive: directive_prefix ("warning"|"warningDirective") // 27 NB thhis changes between 1.0 and 1.1 but there are some inconsistent examples
+column_validation_expr: combinatorial_expr | non_combinatorial_expr // 28
+combinatorial_expr: or_expr | and_expr // 29
+or_expr: non_combinatorial_expr "or" column_validation_expr // 30
+and_expr: non_combinatorial_expr "and" column_validation_expr // 31
+non_combinatorial_expr: non_conditional_expr | conditional_expr // 32
+non_conditional_expr: single_expr | external_single_expr | parenthesized_expr // 33
+single_expr: explicit_context_expr? ( is_expr | any_expr | not_expr | in_expr | starts_with_expr | ends_with_expr | reg_exp_expr | range_expr | length_expr | empty_expr | not_empty_expr | unique_expr | uri_expr | xsd_date_time_expr | xsd_date_time_with_time_zone_expr | xsd_date_expr | xsd_time_expr | uk_date_expr | date_expr| partial_uk_date_expr | partial_date_expr | uuid4_expr | positive_integer_expr | upper_case_expr | lower_case_expr | identical_expr) // 34
+explicit_context_expr: column_ref "/" // 35
+column_ref: "$" ( column_identifier | quoted_column_identifier ) // 36
+is_expr: "is(" string_provider ")" // 37
+any_expr: "any(" string_provider ("," string_provider)* ")" // 38
+not_expr: "not(" string_provider ")" // 39
+in_expr: "in(" string_provider ")" // 40
+starts_with_expr: "starts(" string_provider ")" // 41
+ends_with_expr: "ends(" string_provider ")" // 42
+reg_exp_expr: "regex(" string_literal ")" // 43
+range_expr: "range(" (numeric_or_any "," numeric_literal | numeric_literal "," numeric_or_any) ")" // 44
+numeric_or_any: numeric_literal | wildcard_literal // 45
+length_expr: "length(" ( positive_integer_or_any ",")? positive_integer_or_any ")" // 46
+positive_integer_or_any: positive_integer_literal | wildcard_literal // 47
+empty_expr: "empty" // 48
+not_empty_expr: "notEmpty" // 49
+unique_expr: "unique" ("(" column_ref ("," column_ref)* ")")? // 50
+uri_expr: "uri" // 51
+xsd_date_time_expr: "xDateTime" ("(" xsd_date_time_literal "," xsd_date_time_literal ")")? // 52
+xsd_date_time_with_time_zone_expr: "xDateTimeTz" ("(" xsd_date_time_with_time_zone_literal "," xsd_date_time_with_time_zone_literal ")")? // 53
+xsd_date_expr: "xDate" ("(" xsd_date_literal "," xsd_date_literal ")")? // 54
+xsd_time_expr: "xTime" ( "(" xsd_time_literal "," xsd_time_literal ")")? // 55
+uk_date_expr: "ukDate" ("(" uk_date_literal "," uk_date_literal ")") // 56
+date_expr: "date(" string_provider "," string_provider "," string_provider ("," xsd_date_literal "," xsd_date_literal)? ")" // 57
+partial_uk_date_expr: "partUkDate" // 58
+partial_date_expr: "partDate(" string_provider "," string_provider "," string_provider ")" // 59
+uuid4_expr: "uuid4" // 60
+positive_integer_expr: "positiveInteger" // 61
+upper_case_expr: "upperCase" // 62
+lower_case_expr: "lowerCase" // 63
+identical_expr: "identical" // 64
+external_single_expr: explicit_context_expr? (file_exists_expr | integrity_check_expr | checksum_expr | file_count_expr) // 65
+file_exists_expr: "fileExists" ("(" string_provider ")")? // 66
+integrity_check_expr: "integrityCheck" "(" (string_provider ",")? (string_provider ",")? ("\"includeFolder\"" | "\"excludeFolder\"") ")" // 67
+checksum_expr: "checksum(" file_expr "," string_literal ")" // 68
+file_count_expr: "fileCount(" file_expr ")" // 69
+file_expr: "file(" (string_provider "," )? string_provider ")" // 70
+string_provider: column_ref | string_literal | concat_expr | no_ext_expr | uri_decode_expr  // 71
+concat_expr: "concat(" string_provider ("," string_provider)+ ")" // 72
+no_ext_expr: "noExt(" string_provider ")" // 73
+uri_decode_expr: "uriDecode(" string_provider ("," string_provider )? ")" // 74
+parenthesized_expr: "(" column_validation_expr+ ")" // 75
+conditional_expr: if_expr | switch_expr // 76
+if_expr: "if(" ( combinatorial_expr | non_conditional_expr ) "," column_validation_expr+ ("," column_validation_expr+)? ")" // 77
+switch_expr: "switch(" switch_case_expr+ ("," column_validation_expr+)? ")" // 78
+switch_case_expr: "if(" (combinatorial_expr | non_combinatorial_expr) "," column_validation_expr+ ")" // 79
+
+xsd_date_time_literal: xsd_date_without_timezone_component "T" xsd_time_literal // 80
+xsd_date_time_with_time_zone_literal: xsd_date_without_timezone_component "T" xsd_time_without_timezone_component xsd_timezone_component // 81
+xsd_date_literal: xsd_date_without_timezone_component xsd_optional_timezone_component // 82
+xsd_time_literal: xsd_time_without_timezone_component xsd_timezone_component // 83
+xsd_date_without_timezone_component: /-?[0-9]{4}-(((0(1|3|5|7|8)|1(0|2))-(0[1-9]|(1|2)[0-9]|3[0-1]))|((0(4|6|9)|11)-(0[1-9]|(1|2)[0-9]|30))|(02-(0[1-9]|(1|2)[0-9])))/ // 84
+xsd_time_without_timezone_component: /([0-1][0-9]|2[0-4]):(0[0-9]|[1-5][0-9]):(0[0-9]|[1-5][0-9])(\.[0-9]{3})?/ // 85
+xsd_optional_timezone_component: xsd_timezone_component? // 86
+xsd_timezone_component: /((\+|-)(0[1-9]|1[0-9]|2[0-4]):(0[0-9]|[1-5][0-9])|Z)/ // 87
+uk_date_literal: /(((0[1-9]|(1|2)[0-9]|3[0-1])\/(0(1|3|5|7|8)|1(0|2)))|((0[1-9]|(1|2)[0-9]|30)\/(0(4|6|9)|11))|((0[1-9]|(1|2)[0-9])\/02))\/[0-9]{4}/ // 88
+positive_non_zero_integer_literal: /[1-9][0-9]*/ // 89
+positive_integer_literal: /[0-9]+/ // 90
+numeric_literal: /-?[0-9]+(\.[0-9]+)?/ // 91
+// string_literal: /\x22[^\x22]*\x22/ // 92
+string_literal: /\"(\\.|[^\"])*\"/ // Allows escapes quote marks in string literal
+character_literal: /'[^\r\n\f']'/ // 93
+wildcard_literal: /"*"/ // 94
+ident: /[A-Za-z0-9\-_\.]+/ // 95

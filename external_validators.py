@@ -2,7 +2,7 @@ import hashlib
 
 
 # Checksum for all known algorithms
-def file_checksum(file_path, sum_type="md5"):
+def file_checksum(file_path, sum_type="MD5"):
     # BUF_SIZE is totally arbitrary
     BUF_SIZE = 65536
 
@@ -12,6 +12,7 @@ def file_checksum(file_path, sum_type="md5"):
         raise ValueError
 
     # Use the specified algorithm
+    sum_type = sum_type.lower().replace("-", "")
     h = hashlib.new(sum_type)
 
     # Check the file exists

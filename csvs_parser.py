@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 from lark import Lark, Transformer
 from external_validators import file_checksum
 
@@ -293,16 +294,23 @@ class CSVS_Transformer(Transformer):
     # partial_date_expr | uuid4_expr | positive_integer_expr ) // 33
     def single_expr(self, tree):
         if len(tree) == 1:
-            (tree, ) = tree
-            return tree
+            (expr, ) = tree
+            return expr
         else:
-            (context, tree) = tree
-            return ([context, tree])
+            (context, expr) = tree
+
+            def contextual_validator(value, row, colmap):
+                # Set the context for the column reference
+                context.row = row
+                context.colmap = colmap
+                context_value = context.resolve()
+                return expr(context_value, row, colmap)
+            return contextual_validator
 
     # explicit_context_expr: column_ref "/" // 34
     def explicit_context_expr(self, tree):
-        (tree,) = tree
-        return tree
+        (column_reference,) = tree
+        return column_reference
 
     # column_ref: "$" ( column_identifier | quoted_column_identifier ) // 35
     def column_ref(self, tree):
@@ -312,12 +320,13 @@ class CSVS_Transformer(Transformer):
 
     # is_expr: "is(" string_provider ")" // 36
     def is_expr(self, tree):
-        (tree,) = tree
+        (string_provider,) = tree
 
         def is_validator(value, row, colmap):
-            tree.row = row
-            tree.colmap = colmap
-            return value == tree.resolve()
+            if isinstance(string_provider, ColumnReference):
+                string_provider.row = row
+                string_provider.colmap = colmap
+            return value == string_provider.resolve()
         return is_validator
 
     # not_expr: "not(" string_provider ")" // 37
@@ -345,15 +354,15 @@ class CSVS_Transformer(Transformer):
 
     # starts_with_expr: "starts(" string_provider ")" // 39
     def starts_with_expr(self, tree):
-        (tree, ) = tree
+        (string_provider, ) = tree
 
         def starts_with_validator(value, row, colmap):
             # Strip the white space if there is any
-            tree.row = row
-            tree.colmap = colmap
-            value = value.strip()
-            starts_with_value = tree.resolve()
-            return starts_with_value == value[:len(starts_with_value)]
+            if isinstance(string_provider, ColumnReference):
+                string_provider.row = row
+                string_provider.colmap = colmap
+            target = string_provider.resolve()
+            return value.startswith(target)
         return starts_with_validator
 
     # ends_with_expr: "ends(" string_provider ")" // 40
@@ -480,15 +489,64 @@ class CSVS_Transformer(Transformer):
 
     # external_single_expr: explicit_context_expr? (file_exists_expr |
     # checksum_expr | file_count_expr) // 59
+    def external_single_expr(self, tree):
+        (tree,) = tree
+        return tree
 
     # file_exists_expr: "fileExists" ("(" string_provider ")")? // 60
 
     # checksum_expr: "checksum(" file_expr "," string_literal ")" // 61
+    def checksum_expr(self, tree):
+        file_expr, checksum_type = tree
+
+        def checksum_validator(value, row, colmap):
+            if isinstance(checksum_type, ColumnReference):
+                checksum_type.row = row
+                checksum_type.colmap = colmap
+                checksum_lib = checksum_type.resolve()
+            elif isinstance(checksum_type, StringLiteral):
+                checksum_lib = checksum_type.resolve()
+            else:
+                checksum_lib = checksum_type
+
+            return value == file_checksum(file_expr(value, row, colmap), checksum_lib)
+
+        return checksum_validator
 
     # file_expr: "file(" (string_provider "," )? string_provider ")" // 62
     def file_expr(self, tree):
-        file_path = Path(*tree)
-        return file_path
+        if len(tree) == 1:
+            # Single argument form: file(path)
+            (path_provider,) = tree
+
+            def resolve_path(value, row, colmap):
+                if isinstance(path_provider, ColumnReference):
+                    path_provider.row = row
+                    path_provider.colmap = colmap
+                    path_str = path_provider.resolve()
+                else:
+                    path_str = path_provider
+                return Path(unquote(urlparse(path_str).path))
+
+        else:
+            # 2 argument form: file(base, path)
+            base_provider, path_provider = tree
+
+            def resolve_path(value, row, colmap):
+                if isinstance(base_provider, ColumnReference):
+                    base_provider.row = row
+                    base_provider.colmap = colmap
+                    base = base_provider.resolve()
+                else:
+                    base = base_provider
+                if isinstance(path_provider, ColumnReference):
+                    path_provider.row = row
+                    path_provider.colmap = colmap
+                    path = path_provider.resolve()
+                else:
+                    path = path_provider
+                return Path(unquote(urlparse(base).path), unquote(urlparse(path).path))
+        return resolve_path
 
     # file_count_expr: "fileCount(" file_expr ")" // 63
 

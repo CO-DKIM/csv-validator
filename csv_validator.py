@@ -87,6 +87,7 @@ class CSV_Validator:
                 directives = self.rules[key]["directives"]
                 functions = self.rules[key]["functions"]
                 for function in functions:
+                    print("FUNCTION", function)
                     if type(function) is tuple:
                         print("CONTEXT: ")
                         for i in function:
