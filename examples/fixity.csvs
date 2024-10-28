@@ -1,4 +1,4 @@
 version 1.0
 @totalColumns 2
-file_path: uri
-fixity: checksum(file($file_path), "MD5")
+file_path: fileExists("file:///Users/kelcey.swain/Documents/src/csv-validator/")
+fixity: checksum(file("file:///Users/kelcey.swain/Documents/src/csv-validator/",$file_path), "MD5")

@@ -494,6 +494,42 @@ class CSVS_Transformer(Transformer):
         return tree
 
     # file_exists_expr: "fileExists" ("(" string_provider ")")? // 60
+    def file_exists_expr(self, tree):
+        if len(tree) == 0:
+
+            def file_exists_validator(path_provider, row, colmap):
+                if isinstance(path_provider, ColumnReference):
+                    path_provider.row = row
+                    path_provider.colmap = colmap
+                    path_str = path_provider.resolve()
+                else:
+                    path_str = path_provider
+                # Decode it form a uri
+                path_str = unquote(urlparse(path_str).path)
+                return Path(path_str).exists()
+        else:
+            base_provider, = tree
+
+            def file_exists_validator(path_provider, row, colmap):
+                if isinstance(base_provider, ColumnReference):
+                    base_provider.row = row
+                    base_provider.colmap = colmap
+                    base = base_provider.resolve()
+                else:
+                    base = base_provider
+                if isinstance(path_provider, ColumnReference):
+                    path_provider.row = row
+                    path_provider.colmap = colmap
+                    file_path = path_provider.resolve()
+                else:
+                    file_path = path_provider
+                file_path = str(base) + str(file_path)
+                file_path = unquote(urlparse(file_path).path)
+
+                path_str = Path(file_path)
+                print("PATH EXISTS:", path_str)
+                return path_str.exists()
+        return file_exists_validator
 
     # checksum_expr: "checksum(" file_expr "," string_literal ")" // 61
     def checksum_expr(self, tree):
@@ -542,10 +578,13 @@ class CSVS_Transformer(Transformer):
                 if isinstance(path_provider, ColumnReference):
                     path_provider.row = row
                     path_provider.colmap = colmap
-                    path = path_provider.resolve()
+                    file_path = path_provider.resolve()
                 else:
-                    path = path_provider
-                return Path(unquote(urlparse(base).path), unquote(urlparse(path).path))
+                    file_path = path_provider
+                file_path = str(base) + str(file_path)
+                file_path = unquote(urlparse(file_path).path)
+                return Path(file_path)
+
         return resolve_path
 
     # file_count_expr: "fileCount(" file_expr ")" // 63

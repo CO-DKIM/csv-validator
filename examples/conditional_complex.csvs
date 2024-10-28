@@ -1,0 +1,4 @@
+version 1.0
+prefix: is("CAB/") or is("PMO/")
+file: notEmpty
+record_number: starts($prefix) and ends($file)
