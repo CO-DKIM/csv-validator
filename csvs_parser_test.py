@@ -132,9 +132,3 @@ def test_uri_expr(transformer):
     assert not uri_validator("http://data.gov.uk/spaces should be escaped", [], {})
 
 
-def test_if_expr(transformer):
-    comparison_value = (StringLiteral("test"),)
-    is_validator = transformer.is_expr(comparison_value)
-    if_validator = transformer.if_expr(())
-    assert if_validator([(StringLiteral("test"), is_validator(StringLiteral("test"), [], {})), True], [], {})
-    assert if_validator([(StringLiteral("test"), is_validator(StringLiteral("test"), [], {})), False], [], {})

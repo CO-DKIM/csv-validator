@@ -602,7 +602,6 @@ class CSVS_Transformer(Transformer):
     # if_expr: "if(" ( combinatorial_expr | non_conditional_expr ) ","
     #    column_validation_expr+ ("," column_validation_expr+)? ")" // 66
     def if_expr(self, tree):
-        print("IF", tree)
 
         if len(tree) == 3:
             def if_validator(value, row, colmap):
